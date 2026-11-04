@@ -26,13 +26,15 @@ app.add_middleware(
 
 # 3. 요청 형식 오류(422)도 공통 응답 구조로 반환
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError):
-    response_body = ApiResponse.fail(
-        http_code=HttpStatusCode.unprocessable_entity
-    ).to_dict()
+async def validation_error_handler(request, exc):
+    body = ApiResponse.fail(
+        HttpStatusCode.unprocessable_entity
+    )
 
-    # 3. HTTP 422 응답 반환
-    return response_body
+    return JSONResponse(
+        status_code=422,
+        content=body.to_dict(),
+    )
 
 
 # 4. 서버가 켜져 있는지 확인
@@ -53,7 +55,7 @@ def fresh_openapi():
         "user_id": "user",
         "session_id": "test-session",
         "date": now_kst(),
-        "question": "안녕하세요",
+        "question": "안녕하세요.",
     }]
     return schema
 
