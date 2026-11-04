@@ -1,0 +1,24 @@
+read me 
+
+controlla = main 
+service = agent
+
+422 에러 관련 
+
+"" 기입시 422가 아닌 500이 뜸 -> 왜지 
+
+http_code 422, 503, 500 기입 
+
+api_response에 class와 method 둘 다 success 명이어서 오류 뜬거 method에 secess -> ok 명 변경으로 해결 
+
+
+chroma 더미 데이터 테스트를 위해 
+
+app/config 
+app/core/infra/embedding 
+app/core/infra/chroma client 
+scripts/seeddummy 
+tests/search test  
+
+추가 작성 중 
+

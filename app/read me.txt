@@ -1,0 +1,6 @@
+read me 
+
+main2 파일은 구버전 
+main 파일은 신버전 
+
+main 파일로 가능할시 main2 파일 삭제예정 
