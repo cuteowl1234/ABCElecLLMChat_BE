@@ -18,9 +18,9 @@ def search(query_vector: list[float], top_k: int) -> list[RetrievedDocument]:
         meta = meta or {}
         documents.append(RetrievedDocument(
             text=text,
-            source=meta.get("source", "unknown"),
-            page=meta.get("page"),
-            chunk_id=meta.get("chunk_id"),
+            source=meta.get("source_file", "unknown"),
+            page=meta.get("page"),                          # 현재 데이터에는 None이지만, 추가 시 자동 표시
+            chunk_id=meta.get("chunk_index"),
             score=round(1 - distance, 4),  # 컬렉션이 cosine 거리라서 1 - 거리 = 유사도
         ))
     return documents
