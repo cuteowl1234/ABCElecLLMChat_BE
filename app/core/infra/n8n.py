@@ -7,8 +7,6 @@ from app.core.config import N8N_WEBHOOK_URL
 def generate(prompt: str) -> str:
     response = requests.post(N8N_WEBHOOK_URL, json={"prompt": prompt}, timeout=150)
     response.raise_for_status()
-    print("n8n 상태 코드:", response.status_code)
-    print("n8n 응답 본문:", repr(response.text))
     answer = response.json().get("answer", "").strip()
     if not answer:
         raise RuntimeError("Empty n8n response")

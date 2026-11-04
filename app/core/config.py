@@ -18,5 +18,5 @@ CHROMA_HOST = os.getenv("CHROMA_HOST", CURRENT_HOST)
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))  # FastAPI(8080)와 겹치지 않게
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "abc_support_docs")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-m3")
-TOP_K = int(os.getenv("TOP_K", "3"))                 # 검색해서 가져올 문서 개수
-MIN_SCORE = float(os.getenv("MIN_SCORE", "0.35"))    # 이 점수보다 낮으면 "근거 없음" (RAG 단계에서 사용)
+TOP_K = int(os.getenv("TOP_K", "3"))                 # 검색해서 가져올 문서 개수 3
+MIN_SCORE = float(os.getenv("MIN_SCORE", "0.55"))    # 이 점수보다 낮으면 "근거 없음" (RAG 단계에서 사용)
