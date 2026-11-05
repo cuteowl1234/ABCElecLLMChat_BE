@@ -94,6 +94,14 @@ def make_search_text(question: str, history: list[tuple[str, str]]) -> tuple[str
             return f"{product_id} {question}", product_id
     return question, None
 
+def search_documents(search_text: str, product_id: str | None) -> list[RetrievedDocument]:
+    """제품이 정해졌으면 그 제품 문서 안에서만 검색하고, 결과가 없으면 전체에서 다시 검색"""
+    query_vector = embed([search_text])[0]
+    documents = llm_repository.search(query_vector, TOP_K, product_id)
+    if not documents and product_id:
+        documents = llm_repository.search(query_vector, TOP_K)
+    return documents
+
 
 def chat(request: ChatRequest) -> ChatResponse:         # query, document, relevant 추가
     #query_vector = embed([request.question])[0]
@@ -102,21 +110,27 @@ def chat(request: ChatRequest) -> ChatResponse:         # query, document, relev
     #search_text = f"{history[-1][0]} {request.question}" if history else request.question
     #search_text = make_search_text(request.question, history)
     search_text, inherited_product = make_search_text(request.question, history)
-    query_vector = embed([search_text])[0]
-    documents = llm_repository.search(query_vector, TOP_K)
+    #query_vector = embed([search_text])[0]
+    #documents = llm_repository.search(query_vector, TOP_K)
+    # 이번 질문의 제품 → 없으면 이전 대화에서 이어받은 제품 → 없으면 필터 없이 전체 검색
+    product_id = find_product(request.question) or inherited_product
+    documents = search_documents(search_text, product_id)
     relevant = [doc
                 for doc in documents
                 if doc.score >= MIN_SCORE]
     # 제품만 말하고 주제가 없어("abc200은?") 검색이 실패하면, 직전 질문의 주제를 붙여 한 번 더 검색
     if not relevant and history and find_product(request.question):
         #retry_text = f"{request.question} {remove_product(history[-1][0])}"
+        #retry_text = f"{normalize_product(request.question)} {remove_product(history[-1][0])}"
+        #documents = llm_repository.search(embed([retry_text])[0], TOP_K)
         retry_text = f"{normalize_product(request.question)} {remove_product(history[-1][0])}"
-        documents = llm_repository.search(embed([retry_text])[0], TOP_K)
+        documents = search_documents(retry_text, product_id)
         relevant = [doc for doc in documents if doc.score >= MIN_SCORE]
 
     if relevant:
         # 점수까지 보려고 로그에도 남긴다 (질문 원문은 개인정보일 수 있어 남기지 않음)
-        logger.info("RAG sources: %s", [(doc.source, doc.page, doc.score) for doc in relevant])
+        #logger.info("RAG sources: %s", [(doc.source, doc.page, doc.score) for doc in relevant])
+        logger.info("RAG sources (product=%s): %s", product_id, [(doc.source, doc.page, doc.score) for doc in relevant])
         #answer = n8n.generate(build_prompt(request.question, relevant))
         # 출처 관련 추가 코드 : 출처는 LLM에게 맡기지 않고, 실제 검색된 문서 정보로 코드에서 붙인다
         #answer += format_sources(relevant)
