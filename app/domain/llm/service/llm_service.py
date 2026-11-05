@@ -32,6 +32,9 @@ PRODUCT_NAMES = {
     "식기세척기": "ABC-200", "세척기": "ABC-200",
     "정수기": "ABC-300"
 }
+# abc200, ABC-200, 식기세척기 뭘 하든 다 답변 제대로 하기 위한 코드
+# 검색할 때 모델명 대신 쓸 대표 제품 이름 (모델명 검색은 FAQ 행으로, 이름 검색은 매뉴얼로 쏠리는 차이 보완)
+PRODUCT_LABELS = {"ABC-100": "광파오븐", "ABC-200": "식기세척기", "ABC-300": "정수기"}
 # 할루시네이션 방지 기능
 # "건조 기능", "온수기능"처럼 기능을 묻는 질문에서 기능 이름(건조, 온수)을 뽑는 패턴
 FEATURE_PATTERN = re.compile(r"([가-힣A-Za-z0-9]{2,}?)\s*기능")
@@ -75,6 +78,10 @@ def remove_product(text: str) -> str:
         text = text.replace(name, "")
     return text.strip()
 
+def to_product_name(text: str) -> str:
+    """검색어의 모델명을 제품 이름으로 바꾼다 (ABC-200 사용법은? → 식기세척기 사용법은?)"""
+    return PRODUCT_ID_PATTERN.sub(lambda m: PRODUCT_LABELS.get(f"ABC-{m.group(1)}", m.group(0)), text)
+
 def make_search_text(question: str, history: list[tuple[str, str]]) -> tuple[str, str | None]:
     """이번 질문에 제품이 없으면, 이전 대화에서 마지막으로 나온 제품 모델명만 붙여서 검색한다.
     반환: (검색어, 이어 붙인 제품명 또는 None)
@@ -90,11 +97,26 @@ def make_search_text(question: str, history: list[tuple[str, str]]) -> tuple[str
 
 def search_documents(search_text: str, product_id: str | None) -> list[RetrievedDocument]:
     """제품이 정해졌으면 그 제품 문서 안에서만 검색하고, 결과가 없으면 전체에서 다시 검색"""
+    """
     query_vector = embed([search_text])[0]
     documents = llm_repository.search(query_vector, TOP_K, product_id)
     if not documents and product_id:
         documents = llm_repository.search(query_vector, TOP_K)
     return documents
+    """
+    """제품이 정해졌으면 그 제품 문서 안에서만 검색하고, 결과가 없으면 전체에서 다시 검색.
+        필터 검색 때는 원래 검색어(ABC-200 ...)와 제품 이름 검색어(식기세척기 ...)로 둘 다 검색해서
+        점수가 높은 조각을 고른다 (모델명 검색은 FAQ 행으로, 이름 검색은 매뉴얼로 쏠리는 차이를 보완)"""
+    if product_id:
+        candidates = {}
+        for text in {search_text, to_product_name(search_text)}:
+            for doc in llm_repository.search(embed([text])[0], TOP_K, product_id):
+                if doc.text not in candidates or doc.score > candidates[doc.text].score:
+                    candidates[doc.text] = doc  # 같은 조각이 두 번 나오면 높은 점수만 남김
+        if candidates:
+            return sorted(candidates.values(), key=lambda d: d.score, reverse=True)[:TOP_K]
+    # 제품이 없거나 필터 결과가 없으면 원래 검색어로 전체 검색
+    return llm_repository.search(embed([search_text])[0], TOP_K)
 
 # 건조기능 로그
 def is_unsupported_feature(question: str, documents: list[RetrievedDocument]) -> bool:
