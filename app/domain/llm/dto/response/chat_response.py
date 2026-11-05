@@ -11,9 +11,9 @@ class ChatResponse:
 
     @classmethod
     def from_json(cls, data: dict) -> "ChatResponse":
-        """딕셔너리(JSON)로 새 ChatResponse를 만든다"""
+        """딕셔너리(JSON)로 새 ChatResponse를 만듦"""
         return cls(**data)
 
     def to_json(self) -> dict:
-        """ChatResponse를 딕셔너리(JSON)로 바꾼다"""
+        """ChatResponse를 딕셔너리(JSON)로 변경"""
         return asdict(self)

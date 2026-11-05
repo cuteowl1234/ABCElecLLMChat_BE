@@ -1,6 +1,5 @@
-from dataclasses import dataclass, asdict
-
-from app.core.common.type.http_code import HttpStatusCode
+"""실패 응답시 {status_code, err_msg} 형식"""
+from dataclasses import dataclass
 
 
 @dataclass

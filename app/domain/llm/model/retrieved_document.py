@@ -1,4 +1,4 @@
-"""Chroma 검색 결과 한 건. repository가 Chroma의 원본 응답(dict)을 이 모양으로 바꿔서 service에 넘긴다."""
+"""Chroma 검색 결과 한 건. repository가 Chroma의 원본 응답(dict)을 해당 모양으로 바꿔서 service에 전달"""
 from dataclasses import dataclass
 
 

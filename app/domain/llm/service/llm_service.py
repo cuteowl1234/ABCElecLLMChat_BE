@@ -1,7 +1,6 @@
-"""/chat 질문 처리 순서(RAG): 질문 임베딩 → Chroma 검색 → 근거 확인 → 프롬프트 → LLM 답변"""
+"""/chat 질문 처리 순서(RAG): 대화 조회 -> 주제 확인 -> Chroma 검색(제품 필터 적용) -> 근거 확인 -> prompt -> LLM 답변 -> 기록 저장"""
 from datetime import datetime, timedelta, timezone
-import logging                                                              # logging 추가
-#from app.core.config import MIN_SCORE, TOP_K                               # top K 추가
+import logging                                                              # logging 추가                            # top K 추가
 from app.core.config import MIN_SCORE, TOP_K, TOPIC_MIN_SCORE               # top K, MIN_SCORE, TOPIC_MIN_SCORE 추가
 from app.core.infra.embedding import embed                                  # 임베드 호출
 from app.domain.llm.prompt.chatbot.system_prompt import build_prompt        # system_prompt 추가
@@ -38,7 +37,7 @@ def now_kst() -> str:
     """현재 한국 시간을 'YYYY-MM-DD HH:mm:ss' 문자열로 반환"""
     return datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
-# 출처 표시 소스 추가-------------------------------------------------------
+# 출처 표시 소스 추가
 def format_sources(documents: list[RetrievedDocument]) -> str:
     """검색된 문서의 파일명·페이지로 출처 문구를 만든다. 같은 출처는 한 번만, 'unknown'은 제외"""
     items = []
@@ -49,7 +48,7 @@ def format_sources(documents: list[RetrievedDocument]) -> str:
         if item not in items:
             items.append(item)
     return f"\n\n[출처] {', '.join(items)}" if items else ""
-#--------------------------------------------------------------------------
+
 def find_product(text: str) -> str | None:
     """문장에서 제품을 찾아 모델명(ABC-200 형태)으로 돌려준다. 없으면 None"""
     found = PRODUCT_ID_PATTERN.search(text)
@@ -73,17 +72,6 @@ def remove_product(text: str) -> str:
         text = text.replace(name, "")
     return text.strip()
 
-'''
-def make_search_text(question: str, history: list[tuple[str, str]]) -> str:
-    """이번 질문에 제품이 없으면, 이전 대화에서 마지막으로 나온 제품 모델명만 붙여서 검색한다."""
-    if find_product(question):
-        return question
-    for past_question, _ in reversed(history):
-        product_id = find_product(past_question)
-        if product_id:
-            return f"{product_id} {question}"
-    return question
-'''
 def make_search_text(question: str, history: list[tuple[str, str]]) -> tuple[str, str | None]:
     """이번 질문에 제품이 없으면, 이전 대화에서 마지막으로 나온 제품 모델명만 붙여서 검색한다.
     반환: (검색어, 이어 붙인 제품명 또는 None)
@@ -107,11 +95,8 @@ def search_documents(search_text: str, product_id: str | None) -> list[Retrieved
 
 
 def chat(request: ChatRequest) -> ChatResponse:         # query, document, relevant 추가
-    #query_vector = embed([request.question])[0]
     history = chat_history_repository.get(request.session_id)
     # 이어지는 질문도 찾을 수 있게 직전 질문을 붙여서 검색
-    #search_text = f"{history[-1][0]} {request.question}" if history else request.question
-    #search_text = make_search_text(request.question, history)
     search_text, inherited_product = make_search_text(request.question, history)
     # 제품을 이어받기 전에, 원래 질문만으로도 문서와 관련 있는지 확인 (의미 없는 말·인사말 거르기)
     if inherited_product:
@@ -122,8 +107,6 @@ def chat(request: ChatRequest) -> ChatResponse:         # query, document, relev
             chat_history_repository.add(request.session_id, request.question, UNCLEAR_ANSWER)
             return ChatResponse(user_id="system", session_id=request.session_id,
                                 date=now_kst(), answer=UNCLEAR_ANSWER)
-    #query_vector = embed([search_text])[0]
-    #documents = llm_repository.search(query_vector, TOP_K)
     # 이번 질문의 제품 → 없으면 이전 대화에서 이어받은 제품 → 없으면 필터 없이 전체 검색
     product_id = find_product(request.question) or inherited_product
     documents = search_documents(search_text, product_id)
@@ -132,27 +115,20 @@ def chat(request: ChatRequest) -> ChatResponse:         # query, document, relev
                 if doc.score >= MIN_SCORE]
     # 제품만 말하고 주제가 없어("abc200은?") 검색이 실패하면, 직전 질문의 주제를 붙여 한 번 더 검색
     if not relevant and history and find_product(request.question):
-        #retry_text = f"{request.question} {remove_product(history[-1][0])}"
-        #retry_text = f"{normalize_product(request.question)} {remove_product(history[-1][0])}"
-        #documents = llm_repository.search(embed([retry_text])[0], TOP_K)
         retry_text = f"{normalize_product(request.question)} {remove_product(history[-1][0])}"
         documents = search_documents(retry_text, product_id)
         relevant = [doc for doc in documents if doc.score >= MIN_SCORE]
 
     if relevant:
         # 점수까지 보려고 로그에도 남긴다 (질문 원문은 개인정보일 수 있어 남기지 않음)
-        #logger.info("RAG sources: %s", [(doc.source, doc.page, doc.score) for doc in relevant])
         logger.info("RAG sources (product=%s): %s", product_id, [(doc.source, doc.page, doc.score) for doc in relevant])
-        #answer = n8n.generate(build_prompt(request.question, relevant))
         # 출처 관련 추가 코드 : 출처는 LLM에게 맡기지 않고, 실제 검색된 문서 정보로 코드에서 붙인다
-        #answer += format_sources(relevant)
-        llm_answer = n8n.generate(build_prompt(request.question, relevant, history))        # 기존 answer 2개 대신 변경
+        llm_answer = n8n.generate(build_prompt(request.question, relevant, history))
         answer = llm_answer + format_sources(relevant)
         if inherited_product:
             answer = llm_answer + INHERITED_PRODUCT_NOTICE.format(product=inherited_product) + format_sources(relevant)
     else:
         logger.info("RAG no result: best score=%s", max((d.score for d in documents), default=None))
-        #answer = NO_RESULT_ANSWER
         llm_answer = answer = NO_RESULT_ANSWER      # llm_answer로 변경
 
     # 기록에는 [출처]를 뺀 답변만 저장 (다음 프롬프트가 지저분해지지 않게)

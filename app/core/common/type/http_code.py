@@ -1,3 +1,4 @@
+"""에러 응답에 쓰는 HTTP 상태 코드와 메시지 모음."""
 from enum import Enum
 
 class HttpStatusCode(Enum):

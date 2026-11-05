@@ -1,4 +1,4 @@
-"""session_id별 최근 대화(질문, 답변)를 메모리에 보관하는 저장소. 서버를 재시작하면 사라진다."""
+"""session_id별 최근 대화(질문, 답변)를 메모리에 보관하는 저장소. 서버를 재시작시 삭제"""
 from collections import defaultdict, deque
 from threading import Lock
 

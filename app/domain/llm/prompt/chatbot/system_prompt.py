@@ -1,6 +1,4 @@
-"""RAG 답변용 프롬프트. 검색된 문서만 근거로 답하게 해서 LLM이 내용을 지어내는 것을 막는다."""
-# LLM이 받는 쪽은 여기로 작성
-
+"""RAG 답변용 프롬프트. 검색된 문서만 근거로 답하게 해서 LLM이 내용을 지어내는 것을 막음"""
 from app.domain.llm.model.retrieved_document import RetrievedDocument
 
 '''

@@ -1,15 +1,13 @@
-"""Chroma에서 질문 벡터와 비슷한 문서를 검색해 RetrievedDocument 목록으로 돌려준다."""
+"""Chroma에서 질문 벡터와 비슷한 문서를 검색해 RetrievedDocument 목록으로 돌려줌"""
 from app.core.common.exception.vector_store_unavailable_error import VectorStoreUnavailableError
 from app.core.infra.chroma_client import get_collection
 from app.domain.llm.model.retrieved_document import RetrievedDocument
 
 
-#def search(query_vector: list[float], top_k: int) -> list[RetrievedDocument]:
 def search(query_vector: list[float], top_k: int, product_id: str | None = None) -> list[RetrievedDocument]:
     """product_id를 주면 그 제품 문서 안에서만 검색한다 (메타데이터 필터)"""
-    options = {"where": {"product_id": product_id}} if product_id else {}   # 제품 번호가 있으면 받고 없으면 빈 딕셔너리 생성
+    options = {"where": {"product_id": product_id}} if product_id else {}   # # 제품 번호가 있으면 검색 조건(where)을 만들고, 없으면 조건 없이 전체 검색
     try:
-        #result = get_collection().query(query_embeddings=[query_vector], n_results=top_k)
         result = get_collection().query(query_embeddings=[query_vector], n_results=top_k, **options)
     except Exception as exc:
         # 서버 꺼짐, 연결 끊김 등 원인이 여러 가지라 한 예외로 바꾸고, 원인(exc)은 로그용으로 보존

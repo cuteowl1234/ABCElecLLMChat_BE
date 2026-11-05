@@ -1,8 +1,7 @@
 """요청 형식: POST /chat 명세의 Request
-user_id, session_id, date, question을 받는다. date는 비우거나 생략하면 서버가 현재 한국 시간으로 채운다.
-빈 질문, 형식이 틀린 날짜가 들어오면 FastAPI가 자동으로 422 에러를 반환한다."""
+user_id, session_id, date, question을 받음. date는 비우거나 생략하면 서버가 현재 KST기준으로 채움.
+빈 질문, 형식이 틀린 날짜가 들어오면 FastAPI가 자동으로 422 에러를 반환."""
 from datetime import datetime, timedelta, timezone
-
 from pydantic import BaseModel, Field, field_validator
 
 KST = timezone(timedelta(hours=9))  # 한국 시간대(UTC+9)로 고정
@@ -16,7 +15,7 @@ def now_kst() -> str:
 
 class ChatRequest(BaseModel):
     user_id: str = Field(min_length=1, description="메시지 작성 주체")
-    session_id: str = Field(min_length=1, description="채팅 세션 식별자")
+    session_id: str = Field(min_length=1, description="채팅 세션 식별자, 같은 값일 시 이전 대화 기억")
     # 보내면 그 값을 사용하고, 안 보내거나 비워 보내면 서버가 요청이 도착한 시간(KST)으로 채운다
     date: str = Field(
         default_factory=now_kst,
@@ -32,41 +31,3 @@ class ChatRequest(BaseModel):
             return now_kst()
         datetime.strptime(value, DATE_FORMAT)
         return value
-
-
-"""
-#요청 형식: POST /chat 명세의 Request
-from datetime import datetime
-
-from pydantic import BaseModel, Field, field_validator
-
-#클라이언트가 보내는 요청의 형식을 정의한 코드입니다. question 문자열 하나를 받으며, 1~2000자로 길이를 제한합니다.
-빈 질문이 들어오면 FastAPI가 자동으로 422 에러를 반환합니다.
-
-
-class ChatRequest(BaseModel):
-    user_id: str = Field(min_length=1, examples=["user"], description="메시지 작성 주체")
-    session_id: str = Field(min_length=1, examples=["test-session"], description="채팅 세션 식별자")
-    #date: str = Field(examples=[""], description="질문 생성 일시 (YYYY-MM-DD HH:mm:ss, KST)")
-    question: str = Field(min_length=1, max_length=2000, examples=["안녕하세요"], description="사용자 질문")
-
-    @field_validator("date")
-    @classmethod
-    def check_date(cls, value: str) -> str:
-        #실제로 존재하는 날짜/시간인지 검사 (형식이 틀리거나 13월 같은 값이면 422)
-        datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-        return value
-
-
-
-# 혹시 몰라 이전코드 그대로 남겨둠
-
-from pydantic import BaseModel, Field
-
-
-class ChatRequest(BaseModel):
-    user_id: str = Field(min_length=1)
-    session_id: str = Field(min_length=1)
-    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
-    question: str = Field(min_length=1, max_length=2000)
-"""

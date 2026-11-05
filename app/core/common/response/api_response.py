@@ -1,3 +1,4 @@
+"""{success, response, error}를 만드는 클래스"""
 from dataclasses import dataclass, asdict
 from typing import TypeVar
 from app.core.common.exception.api_error import ApiError
@@ -12,14 +13,13 @@ class ApiResponse[T]:
     error: ApiError | None
 
     @classmethod
-    #def success(cls, data: T) -> "ApiResponse[T]": # 기존 코드
-        #return cls(success=True, response=data, error=None)
-    def ok(cls, data: T) -> "ApiResponse[T]":   # method class 간 success 명 중복으로 ok로 변경
+    def ok(cls, data: T) -> "ApiResponse[T]":
+        """성공 응답"""
         return cls(success=True, response=data, error=None)
 
     @classmethod
     def fail(cls, http_code: HttpStatusCode) -> "ApiResponse[None]":  # 💡 custom_msg에서 err_msg로 변경
-        """실패 응답을 만드는 팩토리 메서드"""
+        """실패 응답을"""
         api_error = ApiError(
             status_code=http_code.value[0],
             err_msg=http_code.value[1],  # 변수명 일치
