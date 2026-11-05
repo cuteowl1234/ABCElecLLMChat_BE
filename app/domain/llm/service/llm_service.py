@@ -1,8 +1,9 @@
 """/chat 질문 처리 순서(RAG): 질문 임베딩 → Chroma 검색 → 근거 확인 → 프롬프트 → LLM 답변"""
 from datetime import datetime, timedelta, timezone
-import logging                                          # logging 추가
-from app.core.config import MIN_SCORE, TOP_K            # top K 추가
-from app.core.infra.embedding import embed              # 임베드 호출
+import logging                                                              # logging 추가
+#from app.core.config import MIN_SCORE, TOP_K                               # top K 추가
+from app.core.config import MIN_SCORE, TOP_K, TOPIC_MIN_SCORE               # top K, MIN_SCORE, TOPIC_MIN_SCORE 추가
+from app.core.infra.embedding import embed                                  # 임베드 호출
 from app.domain.llm.prompt.chatbot.system_prompt import build_prompt        # system_prompt 추가
 from app.domain.llm.repository import llm_repository                        # llm_repository 호출
 from app.domain.llm.repository import chat_history_repository               # 대화 기록 저장소
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)                    # logger 추가
 KST = timezone(timedelta(hours=9))      # 응답했을 때 KST 기준으로 고정
 
 # 근거 문서가 없을 때는 LLM을 부르지 않고 이 문구로 답한다 (지어낸 답변 방지)
+# 질문 자체가 제품·서비스와 관련 없어 보일 때 (인사말, 의미 없는 말 등)
+UNCLEAR_ANSWER = "질문을 정확히 이해하지 못했어요. 궁금하신 제품과 내용을 함께 말씀해 주세요."
 NO_RESULT_ANSWER = "제공된 문서에서 관련 내용을 확인할 수 없습니다. 자세한 내용은 고객센터로 문의해 주세요."
 # 이전 대화의 제품을 이어 붙여 검색했을 때, 고객이 다른 제품을 뜻했을 수 있으니 안내
 INHERITED_PRODUCT_NOTICE = "\n\n※ {product} 기준으로 안내드렸어요. 다른 제품이라면 제품명을 함께 말씀해 주세요."
@@ -110,6 +113,15 @@ def chat(request: ChatRequest) -> ChatResponse:         # query, document, relev
     #search_text = f"{history[-1][0]} {request.question}" if history else request.question
     #search_text = make_search_text(request.question, history)
     search_text, inherited_product = make_search_text(request.question, history)
+    # 제품을 이어받기 전에, 원래 질문만으로도 문서와 관련 있는지 확인 (의미 없는 말·인사말 거르기)
+    if inherited_product:
+        raw_documents = search_documents(normalize_product(request.question), None)
+        raw_best = max((d.score for d in raw_documents), default=0)
+        logger.info("Topic check: best score=%s", raw_best)
+        if raw_best < TOPIC_MIN_SCORE:
+            chat_history_repository.add(request.session_id, request.question, UNCLEAR_ANSWER)
+            return ChatResponse(user_id="system", session_id=request.session_id,
+                                date=now_kst(), answer=UNCLEAR_ANSWER)
     #query_vector = embed([search_text])[0]
     #documents = llm_repository.search(query_vector, TOP_K)
     # 이번 질문의 제품 → 없으면 이전 대화에서 이어받은 제품 → 없으면 필터 없이 전체 검색

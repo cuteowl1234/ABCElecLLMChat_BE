@@ -20,3 +20,4 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "abc_support_docs")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "BAAI/bge-m3")
 TOP_K = int(os.getenv("TOP_K", "3"))                 # 검색해서 가져올 문서 개수 3
 MIN_SCORE = float(os.getenv("MIN_SCORE", "0.55"))    # 이 점수보다 낮으면 "근거 없음" (RAG 단계에서 사용)
+TOPIC_MIN_SCORE = float(os.getenv("TOPIC_MIN_SCORE", "0.45"))  # 제품을 이어받기 전, 질문 자체가 문서와 관련 있는지 보는 기준 (무관한 말 ~0.40)
