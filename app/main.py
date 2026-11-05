@@ -1,4 +1,5 @@
 """서버 실행 담당: 앱 생성, CORS 설정, 공통 에러 처리, 라우터 등록"""
+import logging # 환각 현상 로그 기록 확인
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +10,8 @@ from app.core.common.type.http_code import HttpStatusCode
 from app.domain.llm.controller import llm_controller
 from app.domain.llm.dto.request.chat_request import now_kst
 
+# 0. 로그 설정: RAG 검색 결과(출처·점수·제품 필터)를 터미널에서 볼 수 있게 INFO 등급부터 출력
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
 # 1. 서버 생성
 app = FastAPI(title="AI 고객지원 및 고객문의 서비스", version="1.0.0")
 
