@@ -1,4 +1,5 @@
 """서버 실행 담당: 앱 생성, CORS 설정, 공통 에러 처리, 라우터 등록"""
+
 import logging # 환각 현상 로그 기록 확인
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
