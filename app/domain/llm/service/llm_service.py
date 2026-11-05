@@ -30,8 +30,11 @@ PRODUCT_ID_PATTERN = re.compile(r"ABC[-\s]?(\d{3})", re.IGNORECASE)
 PRODUCT_NAMES = {
     "광파오븐": "ABC-100", "오븐": "ABC-100",
     "식기세척기": "ABC-200", "세척기": "ABC-200",
-    "정수기": "ABC-300",
+    "정수기": "ABC-300"
 }
+# 할루시네이션 방지 기능
+# "건조 기능", "온수기능"처럼 기능을 묻는 질문에서 기능 이름(건조, 온수)을 뽑는 패턴
+FEATURE_PATTERN = re.compile(r"([가-힣A-Za-z0-9]{2,}?)\s*기능")
 
 def now_kst() -> str:
     """현재 한국 시간을 'YYYY-MM-DD HH:mm:ss' 문자열로 반환"""
@@ -93,6 +96,17 @@ def search_documents(search_text: str, product_id: str | None) -> list[Retrieved
         documents = llm_repository.search(query_vector, TOP_K)
     return documents
 
+# 건조기능 로그
+def is_unsupported_feature(question: str, documents: list[RetrievedDocument]) -> bool:
+    """'건조 기능 있어?'처럼 기능을 묻는데, 그 기능 이름이 검색된 문서 본문 어디에도 없으면 True.
+    LLM은 비슷한 내용으로 없는 기능을 지어내는 경향이 있어서, 코드에서 먼저 걸러낸다"""
+    found = FEATURE_PATTERN.search(question)
+    if not found:
+        return False                       # 기능 질문이 아니면 검사하지 않음
+    feature = found.group(1)
+    if find_product(feature):
+        return False                       # "식기세척기 기능"처럼 제품명이 잡히면 검사하지 않음
+    return not any(feature in doc.text for doc in documents)
 
 def chat(request: ChatRequest) -> ChatResponse:         # query, document, relevant 추가
     history = chat_history_repository.get(request.session_id)
@@ -118,6 +132,11 @@ def chat(request: ChatRequest) -> ChatResponse:         # query, document, relev
         retry_text = f"{normalize_product(request.question)} {remove_product(history[-1][0])}"
         documents = search_documents(retry_text, product_id)
         relevant = [doc for doc in documents if doc.score >= MIN_SCORE]
+
+    # 문서에 없는 기능을 묻는 질문은 LLM에 넘기지 않음 (할루시네이션 방지)
+    if relevant and is_unsupported_feature(request.question, relevant):
+        logger.info("Feature not in documents: %s", FEATURE_PATTERN.search(request.question).group(1))
+        relevant = []
 
     if relevant:
         # 점수까지 보려고 로그에도 남긴다 (질문 원문은 개인정보일 수 있어 남기지 않음)
