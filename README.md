@@ -1,15 +1,6 @@
-# temporary_BE — ABC Electronics AI 고객지원 Backend
-
-> 상태: Draft  
-> 적용 범위: `temporary_BE` 저장소 (FastAPI Backend)  
-> 문서 담당자: 결정 필요  
-> 마지막 검토일: 2026-11-05
-
----
+# ABC Electronics AI 고객지원 Backend
 
 ## 1. 프로젝트 개요
-
-### 목적과 해결하는 문제
 - ABC Electronics 고객의 제품 사용법, 보증·A/S, 배송·교환·반품 문의에 답하는 고객지원 챗봇의 Backend
 - 회사 문서(제품 매뉴얼·보증 정책·배송 정책 PDF, FAQ)를 검색해 **문서에 근거한 답변** 제공
 
@@ -17,17 +8,9 @@
 | 기능 | 설명 |
 |---|---|
 | RAG 답변 | 질문 임베딩 → Chroma에서 관련 문서 조각 검색 → 해당 내용만 근거로 LLM 답변 |
-| 근거 없음 처리 | 검색 점수가 기준(`MIN_SCORE`) 미만이면 LLM 미호출, 고정 안내 문구로 응답 (지어낸 답변 방지) |
 | 출처 표시 | 실제 검색된 문서의 파일명을 코드에서 답변 끝에 `[출처]`로 추가 |
 | 대화 기억 (멀티턴) | `session_id`별 최근 5턴 저장 후 프롬프트의 `[이전 대화]`로 전달 |
 | 제품 인식 | `ABC-200`, `abc200`, `ABC 200`, `식기세척기` 등을 하나의 모델명으로 인식 |
-| 제품 이어받기 | 질문에 제품이 없으면 최근 대화의 제품명을 검색어에 추가, 답변에 기준 제품 안내 |
-| 주제 빌려오기 | 제품만 말한 질문(`abc200은?`)이 검색에 실패하면 직전 질문의 주제를 붙여 재검색 |
-| 제품 필터 | 인식한 제품의 문서(`product_id`) 안에서만 검색, 결과가 없으면 전체 검색 |
-| 모델명·이름 이중 검색 | 제품 필터 검색 시 원래 검색어(`ABC-200 사용법은?`)와 이름으로 바꾼 검색어(`식기세척기 사용법은?`)를 둘 다 검색, 점수가 높은 조각 선택 |
-| 무관한 질문 거르기 | 제품을 이어받기 전 원래 질문의 관련도가 기준(`TOPIC_MIN_SCORE`) 미만이면 되묻는 문구로 응답 |
-| 없는 기능 차단 | `OO 기능` 질문에서 기능 이름이 검색된 문서 본문에 없으면 LLM 미호출, 고정 안내 문구로 응답 |
-| 환각 방지 프롬프트 | 문서 밖 내용 생성 금지, 비슷한 내용으로 추측 금지, 넓은 질문(`사용법`)은 절차를 순서대로 정리하도록 규칙 지정 |
 
 ### 지원 범위
 - 지원 제품: ABC-100(스마트 광파오븐), ABC-200(스마트 식기세척기), ABC-300(데스크 정수기)
@@ -38,11 +21,9 @@
 | 구분 | 사용 기술 |
 |---|---|
 | Web framework | FastAPI, Uvicorn |
-| 요청 검증 | Pydantic |
 | 임베딩 | sentence-transformers (`BAAI/bge-m3`) |
 | Vector DB | Chroma (HTTP client) |
 | LLM 호출 | n8n Webhook → Ollama (모델은 n8n 워크플로에서 지정) |
-| 기타 | requests (HTTP 호출) |
 
 ---
 
@@ -50,8 +31,7 @@
 
 | 항목 | 요구 사항 |
 |---|---|
-| Python | **3.12 이상** (`class ApiResponse[T]` 제네릭 문법 사용), 개발 환경 3.14 |
-| Package manager | pip (`requirements.txt`) |
+| Python | **3.12 이상**, 개발 환경 3.14 |
 | 운영체제 | Windows에서 개발·검증, 그 외 OS 미검증 |
 | 외부 service | Chroma 서버, n8n(워크플로 Published 상태), Ollama — 모두 실행 중이어야 `/chat` 동작 |
 | Frontend | React (개발 서버 포트 3000 또는 5173) |
@@ -75,18 +55,6 @@ python -m uvicorn app.main:app --reload --port 8080
 ```
 - 성공 기준: 터미널에 `Application startup complete.` 출력, `http://localhost:8080/docs`(Swagger) 접속 가능
 
-### 동작 확인 (수동)
-1. Swagger에서 `POST /chat` → Try it out → 예시 그대로 Execute
-2. `200`, `success: true`, `response.answer`에 답변과 `[출처]` 포함 시 성공
-3. 외부 서비스 연결 확인 (예시, PowerShell)
-   ```powershell
-   Test-NetConnection <CHROMA_HOST> -Port <CHROMA_PORT>
-   Test-NetConnection <N8N_HOST> -Port 5678
-   ```
-
-### format, lint, test, build
-- 해당 없음: formatter, linter, 자동 테스트, build 설정 미구성 (10장 참고)
-
 ---
 
 ## 4. 설정과 환경
@@ -105,15 +73,6 @@ python -m uvicorn app.main:app --reload --port 8080
 | `MIN_SCORE` | 근거로 인정할 최소 유사도 | 선택 (기본 0.55) | `0.55` |
 | `TOPIC_MIN_SCORE` | 제품을 이어받기 전 질문 자체의 최소 관련도 | 선택 (기본 0.45) | `0.45` |
 | `OLLAMA_URL`, `LLM_MODEL` | 현재 코드에서 미사용 (`config.py`에만 남음, 모델은 n8n 워크플로에서 지정) | 해당 없음 | `http://<host>:11434`, `qwen2.5:3b` |
-
-### 주입 방식 (예시, PowerShell)
-```powershell
-$env:CHROMA_HOST = "localhost"
-$env:MIN_SCORE = "0.5"
-python -m uvicorn app.main:app --reload --port 8080
-```
-- 환경 변수는 해당 터미널 창에서만 적용
-- `.env` 파일 미사용
 
 ### 점수 기준값 근거
 - 측정 모델: `bge-m3` (2026-11-04 측정)
@@ -181,10 +140,6 @@ Client
          근거 없음 → 고정 안내 문구 (LLM 미호출)
       8. 대화 기록 저장 (안내·출처 제외)
   → controller: ApiResponse로 감싸서 반환
-```
-
-### 관련 ADR
-- 해당 없음: ADR 미작성 (규칙 기반 검색어 결정을 택한 이유는 14장 참고)
 
 ---
 
@@ -238,9 +193,6 @@ Client
 | 503 | Chroma 또는 n8n 연결 실패, n8n 오류 응답 | AI 서버에 연결할 수 없습니다. |
 | 500 | 그 밖의 오류 (n8n 빈 응답 등) | AI 응답 생성 중 오류가 발생했습니다. |
 
-### 인증·인가, pagination, idempotency
-- 해당 없음: 인증 없는 단일 조회형 endpoint, 목록 조회·상태 변경 없음
-
 ---
 
 ## 7. Database와 Migration
@@ -284,39 +236,7 @@ Client
 
 ---
 
-## 9. 오류 처리와 관측성
-
-- 오류 응답 형식: 모두 공통 형식 `{success, response, error}` (422는 `main.py`의 예외 처리기에서 변환)
-- 오류 응답에 내부 구조·stack trace 미노출, 상세 원인은 서버 로그(`logger.exception`)에만 기록
-- 로그 (Python `logging`, logger 이름 = 모듈 경로)
-
-  | 로그 | 내용 |
-  |---|---|
-  | `RAG sources (product=...)` | 필터 제품, 근거로 쓴 문서의 출처·점수 |
-  | `RAG no result: best score=...` | 근거가 없을 때 최고 점수 |
-  | `Topic check: best score=...` | 제품 이어받기 전 원래 질문의 관련도 |
-  | `Feature not in documents: ...` | 문서에 없어 차단한 기능 이름 |
-  | `LLM service unavailable` / `Chat failed` | 503 / 500 발생 시 traceback |
-
-- INFO 로그 터미널 표시: `main.py`의 `logging.basicConfig(level=logging.INFO)`로 설정, uvicorn 터미널에 출력
-- 민감 정보: 질문 원문과 `session_id`는 로그에 미기록
-- metric, trace, SLO, alert, dashboard: 해당 없음 (시연 단계로 미구성)
-- health check: 해당 없음 (별도 endpoint 없음, `/docs` 응답으로 서버 기동만 확인 가능)
-
-## 9-1. 문서와 보안 운영 메타데이터
-
-| 항목 | 상태 |
-|---|---|
-| 문서 담당자 / 최종 검증일 | 결정 필요 / 2026-11-05 |
-| 관련 ADR, 운영 문서 | 해당 없음 (미작성) |
-| 민감 정보 분류 | 사용자 질문은 개인정보 포함 가능 데이터로 간주 (로그 미기록, 대화 기록은 메모리에만 보관) |
-| 로그 보존 기간 / 접근 권한 | 결정 필요 (현재 터미널 출력만, 파일 저장 없음) |
-| secret rotation 책임 | 해당 없음 (사용 중인 secret 없음) |
-| 보안 incident 대응 절차 | 결정 필요 |
-
----
-
-## 10. 테스트
+## 9. 테스트
 
 | 범위 | 상태 |
 |---|---|
@@ -337,39 +257,7 @@ Client
 
 ---
 
-## 11. Build·배포·운영
-
-- 해당 없음: 별도 build artifact·배포 파이프라인 없음, 로컬에서 `uvicorn`으로 실행
-- 종료: 터미널에서 `Ctrl+C` (종료 시 메모리의 대화 기록 삭제)
-- `.gitignore` 제외 대상: `.idea`, `.venv`, `development-guidelines`, `ollama_request.json`
-- `__pycache__/`는 `.gitignore`에 없음 → 커밋에 섞이지 않도록 `.gitignore`에 추가 권장
-
----
-
-## 12. 주요 Dependency
-
-| 패키지 | 도입 목적 |
-|---|---|
-| `fastapi`, `uvicorn` | Web API 서버 |
-| `pydantic` | 요청 검증 |
-| `chromadb` | Chroma HTTP 클라이언트 |
-| `sentence-transformers` (`torch`, `transformers`) | 질문 임베딩 (`BAAI/bge-m3`) |
-| `requests` | n8n Webhook 호출 |
-
-- 버전 고정: `requirements.txt` (`pip freeze` 결과)
-- `requirements.txt`가 UTF-16으로 저장되어 일부 도구에서 읽기 실패 가능 (pip는 정상 동작), UTF-8 재저장 권장
-- update 정책, license·보안 검토: 결정 필요
-
----
-
-## 13. License
-
-- project license: 결정 필요 (미지정)
-- 외부 asset: 임베딩 모델 `BAAI/bge-m3`, LLM 모델은 각 모델의 license 적용
-
----
-
-## 14. 알려진 한계와 개선 방향
+## 10. 알려진 한계와 개선 방향
 
 | 한계 | 현재 방식 | 개선 방향 |
 |---|---|---|
