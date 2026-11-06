@@ -1,16 +1,9 @@
 """요청 형식: POST /chat 명세의 Request
 user_id, session_id, date, question을 받음. date는 비우거나 생략하면 서버가 현재 KST기준으로 채움.
 빈 질문, 형식이 틀린 날짜가 들어오면 FastAPI가 자동으로 422 에러를 반환."""
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
-
-KST = timezone(timedelta(hours=9))  # 한국 시간대(UTC+9)로 고정
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"   # 명세 형식: YYYY-MM-DD HH:mm:ss
-
-
-def now_kst() -> str:
-    """현재 한국 시간을 'YYYY-MM-DD HH:mm:ss' 문자열로 반환"""
-    return datetime.now(KST).strftime(DATE_FORMAT)
+from app.core.utils.datetime_util import DATE_FORMAT, now_kst
 
 
 class ChatRequest(BaseModel):

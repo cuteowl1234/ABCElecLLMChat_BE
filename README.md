@@ -96,10 +96,11 @@ app/
 ├── core/                                 공통 부품
 │   ├── config.py                         설정값
 │   ├── common/
-│   │   ├── type/http_code.py             에러 코드·메시지 (422/500/503)
-│   │   ├── exception/api_error.py        에러 응답의 error 칸 형식
+│   │   ├── exception/http_code.py        에러 코드·메시지 (422/500/503)
 │   │   ├── exception/vector_store_unavailable_error.py   Chroma 실패 예외
-│   │   └── response/api_response.py      공통 응답 {success, response, error}
+│   │   └── response/api_response.py      공통 응답 {success, response, error}와 error 칸 형식(ApiError)
+│   ├── utils/
+│   │   └── datetime_util.py              KST 현재 시각(now_kst) 등 날짜 공통 기능
 │   └── infra/                            외부 시스템 연결
 │       ├── embedding.py                  문장 → 벡터
 │       ├── chroma_client.py              Chroma 접속

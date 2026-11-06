@@ -6,10 +6,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+from app.core.common.exception.http_code import HttpStatusCode
 from app.core.common.response.api_response import ApiResponse
-from app.core.common.type.http_code import HttpStatusCode
+from app.core.utils.datetime_util import now_kst
 from app.domain.llm.controller import llm_controller
-from app.domain.llm.dto.request.chat_request import now_kst
 
 # 0. 로그 설정: RAG 검색 결과(출처·점수·제품 필터)를 터미널에서 볼 수 있게 INFO 등급부터 출력
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
