@@ -13,16 +13,27 @@ SYSTEM_PROMPT = (
     "6. 고객이 묻는 기능이나 사양이 [참고 문서]의 내용으로 확인되지 않으면, 비슷한 내용을 근거로 "
     "'설정에 따라 다르다', '가능할 수 있다'처럼 추측하지 말고 5번처럼 답하세요. "
     "표현이 달라도 같은 뜻이면 문서 내용으로 답하세요.\n"
-    "7. '사용법', '관리 방법'처럼 범위가 넓은 질문은 [참고 문서]의 관련 절차를 순서대로 정리해서 답하세요."
+    "7. '사용법', '관리 방법'처럼 범위가 넓은 질문은 [참고 문서]의 관련 절차를 순서대로 정리해서 답하세요.\n"
+    "8. 한자, 일본어, 중국어를 쓰지 말고 한글로만 답하세요. 문장 끝에는 '.'를 쓰세요."
 )
+
+# 작은 모델은 맨 앞의 규칙보다 가까운 내용을 더 따르므로, 답을 쓰기 직전 위치에 언어 규칙을 한 번 더 둔다
+LANGUAGE_REMINDER = "※ 위 질문에 한국어(한글)로만 답하세요. 한자·일본어·중국어를 섞지 마세요."
+# 첫 답변에 다른 언어가 섞였을 때 다시 요청하는 문구 (temperature 0이라 프롬프트가 같으면 같은 답이 나오므로 문구를 바꿔 보냄)
+STRICT_LANGUAGE_REMINDER = (
+    "※ 이전 답변에 한자나 일본어가 섞였습니다. 以下, の, 。 같은 문자를 쓰지 말고 "
+    "'다음', '.'처럼 한글과 일반 문장부호로만 다시 답하세요."
+)
+
 
 def build_prompt(
     question: str,
     documents: list[RetrievedDocument],
     history: list[tuple[str, str]] | None = None,
+    strict_language: bool = False,
 ) -> str:
     context = "\n\n".join(
-        f"[출처: {doc.source}, {doc.page}페이지]\n{doc.text}" for doc in documents
+        f"[출처: {__format_source(doc)}]\n{doc.text}" for doc in documents
     )
     parts = [SYSTEM_PROMPT]
     if history:
@@ -30,4 +41,10 @@ def build_prompt(
         parts.append(f"[이전 대화]\n{history_text}")
     parts.append(f"[참고 문서]\n{context}")
     parts.append(f"[고객 질문]\n{question}")
+    parts.append(STRICT_LANGUAGE_REMINDER if strict_language else LANGUAGE_REMINDER)
     return "\n\n".join(parts)
+
+
+def __format_source(doc: RetrievedDocument) -> str:
+    """페이지 정보가 없으면 'None페이지'가 들어가지 않도록 파일명만 표시"""
+    return f"{doc.source}, {doc.page}페이지" if doc.page is not None else doc.source

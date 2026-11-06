@@ -1,4 +1,4 @@
-"""/chat 질문 처리 순서(RAG): 대화 조회 -> 주제 확인 -> Chroma 검색(제품 필터 적용) -> 근거 확인 -> prompt -> LLM 답변 -> 기록 저장"""
+"""/chat 질문 처리 순서(RAG): 대화 조회 -> 주제 확인 -> Chroma 검색(제품 필터 적용) -> 근거 확인 -> prompt -> LLM 답변 -> 언어 확인 -> 기록 저장"""
 import logging
 import re
 from app.core.config import MIN_SCORE, TOP_K, TOPIC_MIN_SCORE
@@ -36,6 +36,9 @@ PRODUCT_LABELS = {"ABC-100": "광파오븐", "ABC-200": "식기세척기", "ABC-
 # 할루시네이션 방지 기능
 # "건조 기능", "온수기능"처럼 기능을 묻는 질문에서 기능 이름(건조, 온수)을 뽑는 패턴
 FEATURE_PATTERN = re.compile(r"([가-힣A-Za-z0-9]{2,}?)\s*기능")
+# 한국어 답변에 섞이면 안 되는 문자: 일본어 가나, 한자, 일본식 문장부호(。、)
+# 작은 LLM(qwen2.5:3b)이 "以下の", "。"처럼 한자권 문자를 섞어 답하는 경우가 있어 코드에서 확인한다
+FOREIGN_SCRIPT_PATTERN = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff。、]")
 
 # 출처 표시 소스 추가
 def __format_sources(documents: list[RetrievedDocument]) -> str:
@@ -124,6 +127,30 @@ def __is_unsupported_feature(question: str, documents: list[RetrievedDocument]) 
         return False                       # "식기세척기 기능"처럼 제품명이 잡히면 검사하지 않음
     return not any(feature in doc.text for doc in documents)
 
+def __has_foreign_script(text: str) -> bool:
+    """답변에 일본어 가나·한자·일본식 문장부호가 섞여 있으면 True"""
+    return bool(FOREIGN_SCRIPT_PATTERN.search(text))
+
+def __remove_foreign_script(text: str) -> str:
+    """재요청 후에도 남은 다른 언어 문자를 지운다. 문장부호는 한국어 문장부호로 바꾼다"""
+    text = text.replace("。", ".").replace("、", ",")
+    text = FOREIGN_SCRIPT_PATTERN.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", text)
+
+def __generate_korean_answer(question: str, documents: list[RetrievedDocument],
+                             history: list[tuple[str, str]]) -> str:
+    """LLM 답변을 받고, 다른 언어가 섞였으면 한 번 다시 요청한다. 그래도 섞여 있으면 해당 문자를 지운다.
+    섞인 답변이 대화 기록에 들어가면 다음 프롬프트에서 모델이 그대로 따라 하므로 여기서 걸러낸다"""
+    answer = n8n.generate(build_prompt(question, documents, history))
+    if not __has_foreign_script(answer):
+        return answer
+    logger.warning("Foreign script in LLM answer, retrying with strict language prompt")
+    answer = n8n.generate(build_prompt(question, documents, history, strict_language=True))
+    if not __has_foreign_script(answer):
+        return answer
+    logger.warning("Foreign script remains after retry, removing it")
+    return __remove_foreign_script(answer)
+
 def chat(request: ChatRequest) -> ChatResponse:
     history = chat_history_repository.get(request.session_id)
     # 이어지는 질문도 찾을 수 있게 직전 질문을 붙여서 검색
@@ -158,7 +185,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         # 점수까지 보려고 로그에도 남긴다 (질문 원문은 개인정보일 수 있어 남기지 않음)
         logger.info("RAG sources (product=%s): %s", product_id, [(doc.source, doc.page, doc.score) for doc in relevant])
         # 출처 관련 추가 코드 : 출처는 LLM에게 맡기지 않고, 실제 검색된 문서 정보로 코드에서 붙인다
-        llm_answer = n8n.generate(build_prompt(request.question, relevant, history))
+        llm_answer = __generate_korean_answer(request.question, relevant, history)
         answer = llm_answer + __format_sources(relevant)
         if inherited_product:
             answer = llm_answer + INHERITED_PRODUCT_NOTICE.format(product=inherited_product) + __format_sources(relevant)
