@@ -3,12 +3,12 @@ import os
 
 
 LOCALHOST = "localhost"
-REMOTEHOST = "192.168.10.1"
-CURRENT_HOST = REMOTEHOST
+# REMOTEHOST = "192.168.10.1"
+CURRENT_HOST = LOCALHOST
 
 # Ollama (LLM)
-OLLAMA_URL = os.getenv("OLLAMA_URL", f"http://{CURRENT_HOST}:11434").rstrip("/")
-LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b")
+# OLLAMA_URL = os.getenv("OLLAMA_URL", f"http://{CURRENT_HOST}:11434").rstrip("/")
+# LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b")
 
 # n8n (FastAPI → n8n Webhook → Ollama워크플로를 동작하는 주소)
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", f"http://{CURRENT_HOST}:5678/webhook/n8n/chat")
