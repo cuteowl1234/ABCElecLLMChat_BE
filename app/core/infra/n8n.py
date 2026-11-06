@@ -5,7 +5,7 @@ from app.core.config import N8N_WEBHOOK_URL
 
 
 def generate(prompt: str) -> str:
-    response = requests.post(N8N_WEBHOOK_URL, json={"prompt": prompt}, timeout=150)
+    response = requests.post(N8N_WEBHOOK_URL, json={"prompt": prompt}, timeout=15)
     response.raise_for_status()
     answer = response.json().get("answer", "").strip()
     if not answer:
